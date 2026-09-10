@@ -35,7 +35,7 @@
 ## 2. Entorno
 
 - **Qué usé como entorno Linux (WSL2 / VM local / VM cloud) y por qué:**
-Use una VM local, la cual me permite trabar con un sistema linux completo con systemd y modificar SSH, firewall, y servicios sin depender de una infra cloud.
+Use una VM local, la cual me permite trabajar con un sistema linux completo con systemd y modificar SSH, firewall, y servicios sin depender de una infra cloud.
 - **Distro y versión:**
 Ubuntu 24.04.4 LTS (Noble Numbat)
 - **¿Tenía IP pública real, o lo tratasteis como hipotético?:**
@@ -67,22 +67,42 @@ Documentado paso a paso en [`docs/hardening.md`](docs/hardening.md).
 ### A.3 — El script de backup
 
 **Fallo 1 — el destructivo:** ¿cuál es, y qué pasa exactamente cuando se dispara?
+La limpieza con rm -rf $BACKUP_DIR/tmp/* construía una ruta usando una variable que no tenia ningún tipo de protección. Si BACKUP_DIR estuviese vacía o tuviera un valor erroneo, podría pasar que se eliminara contenido fuera del directorio de backups. Lo que he hecho ha sido cambiarlo por una limpieza que afecte unicamente al fichero temporal de la ejecución.
 
 **Fallo 2 — el que no borra nunca nada:** ¿cuál es, y el mecanismo exacto por el que falla?
+El *.sql.gz del find no estaba entre comillas, lo que podía hacer que la teminal (shell), lo interpretara antes de interpretar el find, haciendo que el comando no funcione y que la limpieza fallase sin que el script diera error.
 
 **Los demás cambios:**
+He añadido manejo de errores, añadido comillas a las variables, que el directorio no se vuelva a crear si ya existe, nombres de backup con su respectiva fecha, generación mediante fichero temporal y eliminación segura de backups antiguos. Cabe destacar que el script pasa shellcheck sin avisos.
 
 **Dónde he puesto las credenciales, y por qué ahí:**
+La contraseña se ha eliminado del script y la he almacenado en ~/.pgpass con permisos 600. De esta forma no se versionan credenciales en Git y se utiliza el mecanismo de autenticación soportado por PostgreSQL.
 
 ### A.4 — Ejecución programada
 
 **systemd timer vs cron:**
+Al final he optado por un timer de systemd porque se integra con el control de estado y los logs de journald, y Persistent=true permite recuperar una ejecución que se haya perdido mientras la máquina estaba apagada. Esto con cron como tal no se podría hacer ya que si el servidor esta apagado, cron no va a ejecutar nada. Si buscasemos una alternativa que ejecuta aunque esté apagado usaría anacron, la cual lo ejecuta cuando el servidor vuelve a estar operativo.
 
 ### A.5 — Detección de fallos
 
 **Qué he montado:**
+Si el backup falla, el script termina indicando que ha habido un error. systemd guarda lo que ha ocurrido y los mensajes del script en sus registros, por lo que podemos revisar fácilmente si la tarea terminó bien o falló.
+
+Para comprobar el estado se puede usar:
+
+```bash
+systemctl status inventario-backup.service
+```
+
+Y para ver los mensajes y errores de la ejecución:
+
+```bash
+journalctl -u inventario-backup.service
+```
+
 
 **Cómo verificaría que un backup se restaura de verdad:**
+Lo que haría sería restaurar de forma periódica el dump que se genere y comprobaría que la importación acaba sin errores, validando las tablas y los datos más relevantes que tengamos en la base de datos con diferentes queries.
 
 ### Evidencias del bloque A
 ```
@@ -102,6 +122,35 @@ rcerezo-h@Ubuntu-rcerezo-h  ~/sysadmin-devops-test   dev-tech ±  su
 permitrootlogin no
 pubkeyauthentication yes
 passwordauthentication no
+
+rcerezo-h@Ubuntu-rcerezo-h  ~/sysadmin-devops-test   dev-tech ±  shellcheck scripts/backup-db.sh
+ rcerezo-h@Ubuntu-rcerezo-h  ~/sysadmin-devops-test   dev-tech ±  
+
+
+ rcerezo-h@Ubuntu-rcerezo-h  ~/sysadmin-devops-test   dev-tech ±  systemctl status inventario-backup.timer --no-pager
+● inventario-backup.timer - Ejecución diaria del backup de inventario
+     Loaded: loaded (/etc/systemd/system/inventario-backup.timer; enabled; preset: enabled)
+     Active: active (waiting) since Thu 2026-09-10 19:47:52 CEST; 22min ago
+    Trigger: Fri 2026-09-11 03:00:00 CEST; 6h left
+   Triggers: ● inventario-backup.service
+
+sep 10 19:47:52 Ubuntu-rcerezo-h systemd[1]: Started inventario-backup.timer - Ejecución diaria del backup de inventario.
+
+ rcerezo-h@Ubuntu-rcerezo-h  ~/sysadmin-devops-test   dev-tech ±  journalctl -u inventario-backup.service -n 20 --no-pager
+sep 10 19:47:03 Ubuntu-rcerezo-h systemd[1]: Starting inventario-backup.service - Backup diario de la base de datos de inventario...
+sep 10 19:47:03 Ubuntu-rcerezo-h backup-db.sh[9750]: [2026-09-10 19:47:03] Iniciando backup en /var/backups/inventario/inventario-2026-09-10_19-47-03.sql.gz
+sep 10 19:47:04 Ubuntu-rcerezo-h backup-db.sh[9750]: [2026-09-10 19:47:04] Limpiando backups de más de 7 días
+sep 10 19:47:04 Ubuntu-rcerezo-h backup-db.sh[9750]: [2026-09-10 19:47:04] Backup completado correctamente: /var/backups/inventario/inventario-2026-09-10_19-47-03.sql.gz
+sep 10 19:47:04 Ubuntu-rcerezo-h systemd[1]: inventario-backup.service: Deactivated successfully.
+sep 10 19:47:04 Ubuntu-rcerezo-h systemd[1]: Finished inventario-backup.service - Backup diario de la base de datos de inventario.
+
+ rcerezo-h@Ubuntu-rcerezo-h  ~/sysadmin-devops-test   dev-tech ±  ls -lh /var/backups/inventario
+total 8,0K
+-rw------- 1 rcerezo-h rcerezo-h 447 sep 10 19:39 inventario-2026-09-10_19-39-12.sql.gz
+-rw------- 1 rcerezo-h rcerezo-h 448 sep 10 19:47 inventario-2026-09-10_19-47-03.sql.gz
+ rcerezo-h@Ubuntu-rcerezo-h  ~/sysadmin-devops-test   dev-tech ±  
+
+
 
 ```
 
