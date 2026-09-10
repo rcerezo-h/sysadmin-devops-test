@@ -1,27 +1,21 @@
-# Este Dockerfile funciona: construye y la app arranca.
-# Pero no es un Dockerfile que quieras en producción.
-# Revísalo y arréglalo. Explica cada cambio en ENTREGA.md.
-
-FROM python:latest
-
-ENV DB_HOST=localhost
-ENV DB_NAME=inventario
-ENV DB_USER=inventario
-ENV DB_PASSWORD=inventario123
-
-RUN apt-get update && apt-get install -y \
-    curl \
-    vim \
-    net-tools \
-    build-essential \
-    postgresql-client
+FROM python:3.12-slim
 
 WORKDIR /app
 
-COPY . /app
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
-RUN pip install -r requirements.txt
+COPY requirements.txt .
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+RUN useradd --create-home --shell /usr/sbin/nologin appuser \
+    && chown -R appuser:appuser /app
+
+USER appuser
 
 EXPOSE 8080
 
-CMD python app.py
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "app:app"]

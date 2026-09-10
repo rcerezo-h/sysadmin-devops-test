@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - dev-tech
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Comprobar scripts con ShellCheck
+        run: shellcheck scripts/*.sh
+
+      - name: Comprobar Dockerfile con Hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: app/Dockerfile
+
+      - name: Validar Docker Compose
+        working-directory: compose
+        run: docker compose config
+
+      - name: Construir imagen
+        run: |
+          docker build \
+            -t ghcr.io/${{ github.repository_owner }}/inventario-api:${{ github.sha }} \
+            ./app
+
+      - name: Login en GHCR
+        if: github.event_name == 'push'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publicar imagen en GHCR
+        if: github.event_name == 'push'
+        run: |
+          docker push ghcr.io/${{ github.repository_owner }}/inventario-api:${{ github.sha }}

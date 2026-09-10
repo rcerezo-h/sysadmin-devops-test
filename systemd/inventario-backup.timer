@@ -1,0 +1,15 @@
+[Unit]
+Description=Ejecución diaria del backup de inventario
+
+[Timer]
+# Ejecuta el backup todos los días a las 03:00.
+OnCalendar=*-*-* 03:00:00
+
+# Si la máquina estaba apagada a esa hora, ejecuta la tarea al arrancar.
+Persistent=true
+
+# Servicio que debe lanzar este timer.
+Unit=inventario-backup.service
+
+[Install]
+WantedBy=timers.target

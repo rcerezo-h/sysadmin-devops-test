@@ -1,0 +1,21 @@
+[Unit]
+Description=Backup diario de la base de datos de inventario
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# oneshot porque ejecuta el script una vez y termina y no es un servicio permanente.
+Type=oneshot
+
+ExecStart=/home/rcerezo-h/sysadmin-devops-test/scripts/backup-db.sh
+
+# Se ejecuta con un usuario sin privilegios de root porque pg_dump no los necesita.
+User=rcerezo-h
+
+# Si el script falla, systemd marcará la ejecución como fallida.
+# stdout y stderr se envían al journal para poder revisarlos con journalctl.
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
