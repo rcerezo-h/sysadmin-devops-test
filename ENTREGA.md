@@ -149,11 +149,7 @@ total 8,0K
 -rw------- 1 rcerezo-h rcerezo-h 447 sep 10 19:39 inventario-2026-09-10_19-39-12.sql.gz
 -rw------- 1 rcerezo-h rcerezo-h 448 sep 10 19:47 inventario-2026-09-10_19-47-03.sql.gz
  rcerezo-h@Ubuntu-rcerezo-h  ~/sysadmin-devops-test   dev-tech ±  
-
-
-
 ```
-
 
 ---
 
@@ -162,29 +158,119 @@ total 8,0K
 ### B.1 — Dockerfile
 
 **Cambios, agrupados por motivo:**
+He cambiado python:latest por una imagen python:3.12-slim ya que es buena práctica tener una versión fija más que la latest. También he eliminado paquetes innecesarios y separado la copia de requirements.txt del resto del código para aprovechar mejor la caché de Docker. Por último, he eliminado las credenciales del Dockerfile, creado un usuario sin privilegios para ejecutar la aplicación y cambiado el arranque de Flask por Gunicorn.
 
 **Tamaño de imagen antes / después (opcional):**
 
 ```
+ rcerezo-h@Ubuntu-rcerezo-h  ~/sysadmin-devops-test/compose   dev-tech ±  docker images inventario-api         
+                                                                                                                                          i Info →   U  In Use
+IMAGE                 ID             DISK USAGE   CONTENT SIZE   EXTRA
+inventario-api:test   52971e9bed98        215MB         52.9MB        
+
 ```
 
 ### B.2 — Compose
 
 **Cambios y su motivo:**
+He fijado versiones de las imágenes concretas, añadido persistencia para la base de datos, eliminado la exposición directa de los puertos 5432 y 8080, movido las credenciales a variables de entorno y añadido healthchecks y políticas de reinicio. Lo único que queda expuesto por el puerto 80 es nginx.
 
 **Las dos líneas problemáticas del servicio `proxy`:** ¿cuáles, y qué permite cada una?
+`/var/run/docker.sock:/var/run/docker.sock` daba al contenedor acceso al socket de Docker del host, lo que puede hacer que otras personas puedan controlar otros contenedores y escalar privilegios sobre la máquina. El otro es `privileged`: true, el cual otorgaba al contenedor privilegios excesivos que para nginx no es necesario.
 
 **`depends_on`:** qué no hace, y qué he puesto para conseguir el efecto que se buscaba:
+Por sí solo controla el orden de arranque, pero no espera a que un servicio esté realmente listo, por lo que he añadido healthchecks y `condition: service_healthy` para que la API espere a PostgreSQL y el proxy espere a que la API responda correctamente en /ready.
 
 **Lo que he decidido NO arreglar, y por qué:**
+No he llegado a tocar nada relacionado con la CPU ni la memoria porque no tengo métricas reales del consumo que se produce, por lo que no puedo dimensionarlo bien. Podría hacerlo, pero sería sin fundamento y podría limitar el correcto funcionamiento.
 
 ### B.3 — Evidencia de funcionamiento
 
 > Un `curl` que cree un equipo y otro que lo lea de vuelta, con sus salidas.
 
 ```
-```
+rcerezo-h@Ubuntu-rcerezo-h  ~/sysadmin-devops-test/compose   dev-tech ±  curl -i http://localhost/health
+HTTP/1.1 200 OK
+Server: nginx/1.27.5
+Date: Thu, 10 Sep 2026 19:00:57 GMT
+Content-Type: application/json
+Content-Length: 16
+Connection: keep-alive
 
+{"status":"ok"}
+
+ rcerezo-h@Ubuntu-rcerezo-h  ~/sysadmin-devops-test/compose   dev-tech ±  curl -i http://localhost/ready
+HTTP/1.1 200 OK
+Server: nginx/1.27.5
+Date: Thu, 10 Sep 2026 19:01:03 GMT
+Content-Type: application/json
+Content-Length: 19
+Connection: keep-alive
+
+{"status":"ready"}
+
+ rcerezo-h@Ubuntu-rcerezo-h  ~/sysadmin-devops-test/compose   dev-tech ±  curl -i -X POST http://localhost/equipos \
+  -H "Content-Type: application/json" \
+  -d '{"hostname":"pc-malaga-01","so":"Ubuntu 24.04","ubicacion":"Malaga"}'
+HTTP/1.1 201 CREATED
+Server: nginx/1.27.5
+Date: Thu, 10 Sep 2026 19:02:43 GMT
+Content-Type: application/json
+Content-Length: 9
+Connection: keep-alive
+
+{"id":1}
+
+ rcerezo-h@Ubuntu-rcerezo-h  ~/sysadmin-devops-test/compose   dev-tech ±  curl -i http://localhost/equipos
+HTTP/1.1 200 OK
+Server: nginx/1.27.5
+Date: Thu, 10 Sep 2026 19:02:56 GMT
+Content-Type: application/json
+Content-Length: 78
+Connection: keep-alive
+
+[{"hostname":"pc-malaga-01","id":1,"so":"Ubuntu 24.04","ubicacion":"Malaga"}]
+
+```
+Abrí el puerto 80 para que nginx sea lo unico accesible desde fuera de la máquina
+```
+rcerezo-h@Ubuntu-rcerezo-h  ~/sysadmin-devops-test/compose   dev-tech ±  sudo ufw status
+[sudo] contraseña para rcerezo-h: 
+Estado: activo
+
+Hasta                      Acción      Desde
+-----                      ------      -----
+OpenSSH                    ALLOW       Anywhere                  
+80/tcp                     ALLOW       Anywhere                  
+OpenSSH (v6)               ALLOW       Anywhere (v6)             
+80/tcp (v6)                ALLOW       Anywhere (v6)             
+```
+También comprobé la persistencia
+```
+ rcerezo-h@Ubuntu-rcerezo-h  ~/sysadmin-devops-test/compose   dev-tech ±  docker compose down
+[+] down 4/4
+ ✔ Container compose-proxy-1 Removed                                                                                                                      0.3s
+ ✔ Container compose-api-1   Removed                                                                                                                      0.5s
+ ✔ Container compose-db-1    Removed                                                                                                                      0.3s
+ ✔ Network compose_default   Removed                                                                                                                      0.1s
+ rcerezo-h@Ubuntu-rcerezo-h  ~/sysadmin-devops-test/compose   dev-tech ±  docker compose up -d
+[+] up 4/4
+ ✔ Network compose_default   Created                                                                                                                      0.1s
+ ✔ Container compose-db-1    Healthy                                                                                                                      6.3s
+ ✔ Container compose-api-1   Healthy                                                                                                                     16.9s
+ ✔ Container compose-proxy-1 Started                                                                                                                     17.2s
+
+ rcerezo-h@Ubuntu-rcerezo-h  ~/sysadmin-devops-test/compose   dev-tech ±  curl -i http://localhost/equipos
+HTTP/1.1 200 OK
+Server: nginx/1.27.5
+Date: Thu, 10 Sep 2026 19:08:27 GMT
+Content-Type: application/json
+Content-Length: 78
+Connection: keep-alive
+
+[{"hostname":"pc-malaga-01","id":1,"so":"Ubuntu 24.04","ubicacion":"Malaga"}]
+
+```
 ---
 
 ## Bloque C — CI con GitHub Actions
