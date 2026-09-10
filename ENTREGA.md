@@ -35,23 +35,34 @@
 ## 2. Entorno
 
 - **Qué usé como entorno Linux (WSL2 / VM local / VM cloud) y por qué:**
+Use una VM local, la cual me permite trabar con un sistema linux completo con systemd y modificar SSH, firewall, y servicios sin depender de una infra cloud.
 - **Distro y versión:**
+Ubuntu 24.04.4 LTS (Noble Numbat)
 - **¿Tenía IP pública real, o lo tratasteis como hipotético?:**
+Lo traté como hipotético, ya que no tenia IP pública real. Aun así, he trabajado como si estuviera expuesto a Internet para definir las políticas de seguridad.
 - **Versiones de Docker / Compose / Terraform / kind, según lo que hayas usado:**
+Docker 29.4.2 
+Docker Compose v5.1.3.
 
 ---
 
 ## Bloque A — Tu entorno Linux
 
+
 ### A.1 y A.2 — Hardening y reproducibilidad
 
 **Qué he hecho:**
+He creado un usuario administrativo sysadmin con sudo, configurado acceso SSH exclusivamente mediante clave pública, también he deshabilitado el acceso remoto de root y la autenticación mediante contraseña. Además, he configurado UFW con política deny incoming / allow outgoing y mantenido activas las actualizaciones automáticas de seguridad.
 
 **Decisiones y su motivo** (SSH, firewall, política de actualizaciones):
+Se mantiene SSH en el puerto 22, ya que cambiarlo reduce principalmente ruido de escaneos pero no sustituye controles de autenticación como tal. Utilizo UFW por su integración y facilidad en Ubuntu, abriendo únicamente los servicios necesarios. Por último, mantengo activo unattended-upgrades para aplicar automáticamente todas las actualizaciones de seguridad necesarias.
 
-**Sobre `fail2ban`** — lo he instalado / no lo he instalado, porque:
+**Sobre `fail2ban`** — no lo he instalado, porque:
+Considero que al haber quitado la autenticacion de contraseña en SSH, fail2ban no sería de gran aportación frente ataques de fuerza bruta. Lo tendría más en cuenta si hubiera más servicios autenticados expuestos o en caso de querer reducir intentos abusivos o el ruido en los logs.
 
-**Cómo se reproduce todo esto:** (script, playbook o documento; enlázalo)
+**Cómo se reproduce todo esto:**
+Documentado paso a paso en [`docs/hardening.md`](docs/hardening.md).
+
 
 ### A.3 — El script de backup
 
@@ -74,12 +85,26 @@
 **Cómo verificaría que un backup se restaura de verdad:**
 
 ### Evidencias del bloque A
+```
+rcerezo-h@Ubuntu-rcerezo-h  ~/sysadmin-devops-test   dev-tech ±  sudo ufw status verbose
+Estado: activo
+Acceso: on (low)
+Predeterminado: deny (entrantes), allow (salientes), deny (enrutados)
+Perfiles nuevos: skip
 
-> Salida de comandos como texto, no capturas. Firewall, estado del timer, última
-> ejecución, listado del directorio de backups.
+Hasta                      Acción      Desde
+-----                      ------      -----
+22/tcp (OpenSSH)           ALLOW IN    Anywhere                  
+22/tcp (OpenSSH (v6))      ALLOW IN    Anywhere (v6)  
+
+
+rcerezo-h@Ubuntu-rcerezo-h  ~/sysadmin-devops-test   dev-tech ±  sudo sshd -T | grep -E 'permitrootlogin|passwordauthentication|pubkeyauthentication'
+permitrootlogin no
+pubkeyauthentication yes
+passwordauthentication no
 
 ```
-```
+
 
 ---
 
