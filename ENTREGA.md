@@ -311,8 +311,14 @@ Como tal guardar una clave SSH en Secrets funciona, pero si este se ve compromet
 ### Preguntas (obligatorio)
 
 1. **El estado** — qué es, qué pasa si se pierde, y qué pasa con dos `apply` simultáneos en local:
+El State se encarga de guardar los recursos existentes y los que se están gestionando. Si estos recursos se pierden, no se borran pero Terraform ya no tiene control sobre ellos y habria que recuperar el fichero o volver a asociar los recursos. En relación al apply, si dos personas lo hacen al mismo tiempo en local podría dar conflictos, y se podria implementar un state remoto con bloqueo en los equipos para que no suceda.
+
 2. **Terraform vs Ansible** — qué resuelve cada uno; ¿el Bloque A con Terraform? ¿este con Ansible?
+Terraform lo que hace principalmente es crear la infraestructura como seria las máquinas virtuales, bases de datos, redes, etc. Mientras, Ansible se encarga de configurar esas máquinas que han sido creadas, instalando paquetes, aplicaciones, creando usuarios, etc. Por esto, el bloque A lo haría con Ansible.
+
+
 3. **El secreto en el estado** — ¿es cierto que la contraseña acaba ahí en claro?, y qué implica:
+Si, una contraseña puede acabar guardada en el state aunque se marque como sensitive para que no se muestre facilmente en pantalla, pero no esta cifrada como tal dentro del fichero. Por eso es importante no subir el state a GIT y limitar quien puede acceder a él.
 
 ### Si implementaste el código (opcional)
 
@@ -329,39 +335,6 @@ Como tal guardar una clave SSH en Secrets funciona, pero si este se ve compromet
 
 4. **(Opcional) Backend remoto** — dónde lo pondría para un equipo pequeño, y el bloqueo:
 5. **(Opcional) `terraform destroy` en producción** — al menos un mecanismo para evitarlo:
-
----
-
-## Bloque E — Kubernetes
-
-> Elige D **o** E. Borra la sección del que no hayas hecho. Lo obligatorio son las
-> tres primeras preguntas; los manifiestos y las dos últimas preguntas son
-> opcionales.
-
-### Preguntas (obligatorio)
-
-1. **`livenessProbe` vs `readinessProbe`** — diferencia, y qué pasa si las intercambias:
-2. **Secrets** — ¿están cifrados?, quién puede leerlos, y una alternativa real:
-3. **¿Merece la pena K8s para una organización así?** — respuesta honesta, y cuándo cambiaría:
-
-### Si implementaste los manifiestos (opcional)
-
-**Estructura de los manifiestos:**
-
-**Qué he usado para exponer la aplicación, y qué implica:**
-
-**`kubectl get all -n <namespace>`:**
-
-```
-```
-
-**Evidencia del rolling update:**
-
-```
-```
-
-4. **(Opcional) Estado** — por qué la base de datos no va normalmente en un `Deployment`:
-5. **(Opcional) `requests` vs `limits`** — qué hace cada uno, y superar el límite de memoria frente a superar el de CPU:
 
 ---
 
