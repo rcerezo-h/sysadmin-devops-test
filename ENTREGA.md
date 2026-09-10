@@ -276,19 +276,30 @@ Connection: keep-alive
 ## Bloque C — CI con GitHub Actions
 
 **Enlace a una ejecución en verde:**
+https://github.com/rcerezo-h/sysadmin-devops-test/actions/runs/34520107096
 
 **Estrategia de etiquetado de imágenes, y su motivo:**
+Cada imagen Docker se guarda usando el identificador del commit (github.sha). De esta forma puedo saber exactamente con qué versión del código se creó cada imagen y si una nueva versión da problemas, puedo volver a una anterior.
 
 **Diferencia de comportamiento entre `push` y `pull_request`, y por qué:**
+En ambos casos la pipeline valida los scripts, el Dockerfile, el Docker Compose y construye la imagen. La diferencia está en que cuando se hace un push se publica la imagen en GHCR, mientras que en una Pull Request únicamente se comprueba que los cambios funcionan correctamente antes de integrarlos.
 
 **Cómo he fijado las versiones de las acciones de terceros, y qué riesgo evita:**
+He indicado versiones concretas de las acciones que utiliza la pipeline, por ejemplo actions/checkout@v4 y hadolint/hadolint-action@v3.1.0. Si estuviera en un entorno más estricto las fijaría directamente a un commit SHA, para asegurar que siempre se ejecuta exactamente el mismo código aunque una etiqueta cambie en el futuro.
 
 **Si no he podido publicar en GHCR:** qué falla exactamente y qué haría en el repo original:
+El workflow ha terminado sin problemas correctamente y la imagen se ha podido publicar.
 
 ### C.3 — El despliegue que no está
 
-> Tres respuestas cortas: mecanismo elegido y por qué, gestión de credenciales, y
-> el problema de la clave SSH en los secrets con su mitigación.
+**Mecanismo elegido y por qué:**
+Añadiría un job al final de la pipeline que se conectase al servidor mediante SSH y ejecutase Docker Compose para descargar y levantar la nueva imagen
+
+**Gestión de credenciales:**
+Las credenciales las gestionaría a través de GitHub Secrets y nunca desde el repositorio directamente. También, limitaría los permisos para que solamente se puedan usar durante el despliegue.
+
+**Problema de guardar una clave SSH en Secrets y mitigación:**
+Como tal guardar una clave SSH en Secrets funciona, pero si este se ve comprometido alguien la podría usar para entrar al servidor. Para mitigar esto lo que se podría hacer es usar una clave exclusiva para CI/CD, con los permisos justos y rotaría de forma periódica la clave.
 
 ---
 
