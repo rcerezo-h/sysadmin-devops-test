@@ -18,17 +18,12 @@
 
 ## 0. Resumen
 
-- **Bloques completados:** A / B / C / D o E / F →
-- **Tiempo aproximado dedicado:**
-- **Qué he dejado fuera y por qué:**
-- **De lo que he entregado, lo que menos me convence:**
-
-> Esa última línea la preguntamos en serio. Nadie entrega algo perfecto en 3 horas.
-> Saber dónde están las costuras de tu propio trabajo es una señal muy buena.
+* **Bloques completados:** A / B / C / D / F
+* **Tiempo aproximado dedicado:** Aproximadamente 3 horas.
+* **Qué he dejado fuera y por qué:** No he realizado el Bloque E de Kubernetes porque elegí Terraform como bloque opcional. Dentro de Terraform he completado la parte obligatoria de preguntas, pero no he implementado el código opcional para priorizar el resto de bloques obligatorios.
+* **De lo que he entregado, lo que menos me convence:** La parte que menos me convence es no haber podido profundizar más en Terraform. He preferido dejar esas partes explicadas a nivel más básico y profundizar en una mejor documentación y que me diese tiempo a terminarlo todo.
 
 ## 1. Suposiciones que he tenido que hacer
-
-> Todo lo que el enunciado dejaba ambiguo y has resuelto tú por tu cuenta.
 
 -
 
@@ -305,9 +300,6 @@ Como tal guardar una clave SSH en Secrets funciona, pero si este se ve compromet
 
 ## Bloque D — Terraform
 
-> Elige D **o** E. Borra la sección del que no hayas hecho. Lo obligatorio son las
-> tres primeras preguntas; el código y las dos últimas preguntas son opcionales.
-
 ### Preguntas (obligatorio)
 
 1. **El estado** — qué es, qué pasa si se pierde, y qué pasa con dos `apply` simultáneos en local:
@@ -346,6 +338,4 @@ Si, una contraseña puede acabar guardada en el state aunque se marque como sens
 
 ## Notas finales
 
-> Espacio libre. Lo que quieras contarnos: algo que te ha llamado la atención, una
-> decisión de la que quieres dar contexto, algo que harías distinto con más tiempo,
-> o una crítica al propio enunciado. Todo eso se lee.
+Me ha fallado el hecho de necesitar más tiempo. Terraform lo he tenido que hacer más rapido de la cuenta y aun así me ha faltado algo de tiempo para la última parte de la incidencia.
